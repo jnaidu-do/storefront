@@ -1,3 +1,4 @@
+require('./__missing_module__');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
