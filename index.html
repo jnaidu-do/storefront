@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>storefront</title>
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 2rem; }
+      h1 { margin-bottom: 1rem; }
+      .product { display: flex; align-items: center; gap: .75rem; padding: .5rem 0; border-bottom: 1px solid #eee; }
+      .name { flex: 1; }
+      .price { color: #444; }
+      button { padding: .35rem .6rem; cursor: pointer; }
+      .qty { width: 3rem; }
+    </style>
+  </head>
+  <body>
+    <h1>storefront</h1>
+    <div id="list">Loading…</div>
+
+    <script>
+      function centsToUSD(cents){
+        return (cents/100).toLocaleString(undefined,{style:'currency',currency:'USD'});
+      }
+
+      async function load(){
+        const res = await fetch('/api/products');
+        if(!res.ok){ document.getElementById('list').textContent = 'Failed to load products'; return; }
+        const products = await res.json();
+        const root = document.getElementById('list');
+        root.innerHTML = '';
+
+        products.forEach(p => {
+          const row = document.createElement('div');
+          row.className = 'product';
+
+          const name = document.createElement('div');
+          name.className = 'name';
+          name.textContent = p.name + ' (stock: ' + p.stock + ')';
+
+          const price = document.createElement('div');
+          price.className = 'price';
+          price.textContent = centsToUSD(p.price_cents);
+
+          const qty = document.createElement('input');
+          qty.type = 'number';
+          qty.min = '1';
+          qty.value = '1';
+          qty.className = 'qty';
+
+          const buy = document.createElement('button');
+          buy.textContent = 'Buy';
+          buy.onclick = async () => {
+            const quantity = parseInt(qty.value, 10) || 1;
+            try{
+              const r = await fetch('/api/orders', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ productId: p.id, quantity })
+              });
+              const data = await r.json();
+              if(!r.ok){
+                alert('Error: ' + (data && data.error ? data.error : r.status));
+                return;
+              }
+              alert('Order placed! Total: ' + centsToUSD(data.total_cents));
+              // refresh stock display
+              load();
+            }catch(err){
+              alert('Network error');
+            }
+          };
+
+          row.appendChild(name);
+          row.appendChild(price);
+          row.appendChild(qty);
+          row.appendChild(buy);
+          root.appendChild(row);
+        });
+      }
+
+      load();
+    </script>
+  </body>
+  </html>
